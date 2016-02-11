@@ -39,6 +39,43 @@ import yaml
 from git_run import GitRun
 
 
+class EnvVarRegEx(object):
+    env_regex_str_tmpl = r"(?P<var>[A-Za-z_][A-Za-z0-9_]*)[\=]" + \
+        r"(" + \
+            r"|(?P<value_woq>\w*)" + "%s" + r")( )$"
+        r")"
+    env_regex_str_dq = r"(\")(?P<value_dq>\w*)(\")(  )$"
+    env_regex_str_sq = r"|(\")(?P<value_sq>\w*)(\")( )$"
+    env_regex_str_woq = r"|(?P<value_woq>\w*)(  )$"
+
+    def __init__(self, env_vars):
+        self.env_vars = env_vars
+        self.env_vars_wspace = env_vars + ' '
+        self.env_regex_re_dq = re.compile(self.env_regex_dq, re.M)
+        self.env_regex_re_sq = re.compile(self.env_regex_sq, re.M)
+        self.env_regex_re_woq = re.compile(self.env_regex_woq, re.M)
+
+    def get_env_var_list(self):
+        import pdb;pdb.set_trace()
+        for env_var_found in self.env_regex_fe_dq.findall(self.env_vars_wspace):
+            print "env_var_found1", env_var_found
+        for env_var_found in self.env_regex_fe_dq.findall(self.env_vars_wspace):
+            print "env_Var_found2", env_var_found
+        for env_var_found in self.env_regex_re_woq.findall(self.env_vars_wspace):
+            print "env var found3", env_var_found
+        # last_equal = env_vars[last_equal:].find('=')
+        # after_equal_char = env_vars[last_equal + 1]
+        # import pdb;pdb.set_trace()
+        # if after_equal_char != '"' and after_equal_char != "'":
+            # index_end = env_vars.find(' ') \
+            #     if ' ' in env_vars \
+                # else len(env_vars) - 1
+            # env_vars = get_env_var_list(cls, env_vars, index_end)
+        # return env_vars
+
+env_vars = EnvVarRegEx("TEST_OTHER_PROJECTS='${HOME}/addons-vauxoo=hola' VERSION=8.0 LINT_CHECK=0").get_env_var_list()
+
+
 # TODO: Change name of class and variables to cmd
 class travis(object):
 
@@ -117,8 +154,12 @@ class travis(object):
         ]
         self.travis2docker_section_dict = dict(self.travis2docker_section)
         self.scripts_root_path = self.get_script_path(self.root_path)
-        env_regex_str = r"(?P<var>[\w]*)[ ]*[\=][ ]*[\"\']{0,1}" + \
-            r"(?P<value>[\w\.\-\_/\$\{\}\:,\(\)\#\* ]*)[\"\']{0,1}"
+        # Follow regex require:
+        #   - Strip newline chars and spaces
+        #   - Add a ' or " char after first equal char if not exists
+        #   - If a ' or " was add then
+        #       add other one at final, before of first space or new line
+        env_regex_str = r"(?P<var>^[\w]*)[\=](\"|\')(?P<value>.*)(\"|\')"
         export_regex_str = r"^(?P<export>export|EXPORT)( )+" + env_regex_str
         self.env_regex = re.compile(env_regex_str, re.M)
         self.export_regex = re.compile(export_regex_str, re.M)
