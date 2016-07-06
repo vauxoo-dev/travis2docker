@@ -1,13 +1,5 @@
+
+Authors
 =======
-Credits
-=======
 
-Development Lead
-----------------
-
-* Vauxoo <info@vauxoo.com>
-
-Contributors
-------------
-
-None yet. Why not be the first?
+* Vauxoo - https://www.vauxoo.com/
