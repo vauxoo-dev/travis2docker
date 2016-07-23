@@ -1,17 +1,24 @@
 import collections
 import os
+import re
 import stat
 from tempfile import gettempdir
 
 import yaml
 
+RE_ENV_STR = r"(?P<var>[\w]*)[  ]*[\=][  ]*[\"\']{0,1}" + \
+             r"(?P<value>[\w\.\-\_/\$\{\}\:,\(\)\#\* ]*)[\"\']{0,1}"
+RE_EXPORT_STR = r"^(?P<export>export|EXPORT)(  )+" + RE_ENV_STR
+
 
 class Travis2Docker(object):
 
     data = None
+    re_export = re.compile(RE_EXPORT_STR, re.M)
 
     @staticmethod
     def load_yml(yml_path):
+        yml_path = os.path.expandvars(os.path.expanduser(yml_path))
         if os.path.isdir(yml_path):
             yml_path = os.path.join(yml_path, '.travis.yml')
         if not os.path.isfile(yml_path):
@@ -36,7 +43,7 @@ class Travis2Docker(object):
                 os.mkdir(self.work_path)
         else:
             self.work_path = os.path.expandvars(os.path.expanduser(root_path))
-        self.dockerfile = os.path.join(self.work_path, dockerfile)
+        self.dockerfile = dockerfile
 
     def _compute(self, section):
         section_type = self._sections.get(section)
@@ -50,13 +57,18 @@ class Travis2Docker(object):
         return job_method(section_data, section)
 
     def _compute_env(self, data, section):
+        if isinstance(data, list):
+            # old version without matrix
+            data = {'matrix': data}
         env_globals = ""
         for env_global in data.get('global', []):
             if isinstance(env_global, dict):
                 # we can't use the secure encrypted variables
                 continue
             env_globals += " " + env_global
-        return "ENV " + env_globals.strip() if env_globals else ""
+        env_globals = env_globals.strip()
+        for env_matrix in data.get('matrix', []):
+            yield "ENV " + (env_globals + " " + env_matrix).strip()
 
     def _compute_run(self, data, section):
         args = self._make_script(data, section)
@@ -69,11 +81,11 @@ class Travis2Docker(object):
         os.chmod(file_path, st.st_mode | stat.S_IEXEC)
 
     def _make_script(self, data, section):
-        file_path = os.path.join(self.work_path, section)
+        file_path = os.path.join(self.curr_work_path, section)
         with open(file_path, "w") as f_section:
             f_section.write('\n'.join(data or []))
         args = {
-            'src': os.path.relpath(file_path, self.work_path),
+            'src': os.path.relpath(file_path, self.curr_work_path),
             'dst': "/" + section,
         }
         self.chmod_execution(file_path)
@@ -87,28 +99,36 @@ class Travis2Docker(object):
         return '\n'.join(args['cmds'])
 
     def compute_dockerfile(self):
-        entryp_path = os.path.join(self.work_path, "entrypoint.sh")
-        entryp_relpath = os.path.relpath(entryp_path, self.work_path)
-        with open(self.dockerfile, "w") as f_dockerfile, \
-                open(entryp_path, "w") as f_entrypoint:
-            f_dockerfile.write("FROM " + self.image + "\n")
-            f_dockerfile.write("COPY " + entryp_relpath + " /entrypoint.sh\n")
-            for section, type_section in self._sections.items():
-                result = self._compute(section)
-                if not result:
-                    continue
-                f_dockerfile.write(result + "\n")
-                print type_section, section
-                if type_section == 'entrypoint':
-                    f_entrypoint.write("/" + section + '\n')
-            f_dockerfile.write("ENTRYPOINT /entrypoint.sh\n")
-        self.chmod_execution(entryp_path)
+        sections = self._sections.copy()
+        sections.pop('env')
+        for count, env in enumerate(self._compute('env'), 1):
+            self.curr_work_path = os.path.join(self.work_path, str(count))
+            if not os.path.isdir(self.curr_work_path):
+                os.mkdir(self.curr_work_path)
+            curr_dockerfile = \
+                os.path.join(self.curr_work_path, self.dockerfile)
+            entryp_path = os.path.join(self.curr_work_path, "entrypoint.sh")
+            entryp_relpath = os.path.relpath(entryp_path, self.curr_work_path)
+            with open(curr_dockerfile, "w") as f_dockerfile, \
+                    open(entryp_path, "w") as f_entrypoint:
+                f_dockerfile.write("FROM " + self.image + "\n")
+                f_dockerfile.write(env + "\n")
+                f_dockerfile.write("COPY " + entryp_relpath + " /entrypoint.sh\n")
+                for section, type_section in sections.items():
+                    result = self._compute(section)
+                    if not result:
+                        continue
+                    f_dockerfile.write(result + "\n")
+                    if type_section == 'entrypoint':
+                        f_entrypoint.write("/" + section + '\n')
+                f_dockerfile.write("ENTRYPOINT /entrypoint.sh\n")
+            self.chmod_execution(entryp_path)
 
 
 if __name__ == '__main__':
     yml_path = "/Users/moylop260/odoo/yoytec/.travis.yml"
-    # yml = Travis2Docker.load_travis_file(yml_path)
+    yml_path = "~/odoo/l10n-argentina"
     t2d = Travis2Docker(yml_path, 'vauxoo/odoo-80-image-shippable-auto')
     t2d.compute_dockerfile()
     print t2d.work_path
-    print open(t2d.dockerfile).read()
+    # print open(t2d.dockerfile).read()
