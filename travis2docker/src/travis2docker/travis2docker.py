@@ -13,8 +13,9 @@ RE_EXPORT_STR = r"^(?P<export>export|EXPORT)(  )+" + RE_ENV_STR
 
 class Travis2Docker(object):
 
-    data = None
     re_export = re.compile(RE_EXPORT_STR, re.M)
+    curr_work_path = None
+    curr_exports = []
 
     @staticmethod
     def load_yml(yml_path):
@@ -53,7 +54,6 @@ class Travis2Docker(object):
         if isinstance(section_data, basestring):
             section_data = [section_data]
         job_method = getattr(self, '_compute_' + section_type)
-        self.data = section_data
         return job_method(section_data, section)
 
     def _compute_env(self, data, section):
@@ -83,7 +83,15 @@ class Travis2Docker(object):
     def _make_script(self, data, section):
         file_path = os.path.join(self.curr_work_path, section)
         with open(file_path, "w") as f_section:
-            f_section.write('\n'.join(data or []))
+            for var, value in self.curr_exports:
+                f_section.write('\nEXPORT %s=%s' % (var, value))
+            for line in data:
+                if 'export' in line.lower():
+                    import pdb;pdb.set_trace()
+                self.curr_exports.extend([
+                    (var, value)
+                    for _, _, var, value in self.re_export.findall(line)])
+                f_section.write('\n' + line)
         args = {
             'src': os.path.relpath(file_path, self.curr_work_path),
             'dst': "/" + section,
@@ -92,9 +100,11 @@ class Travis2Docker(object):
         args['cmds'] = ["COPY %(src)s %(dst)s" % args]
         return args
 
+    def reset(self):
+        self.curr_work_path = None
+        self.curr_exports = []
+
     def _compute_entrypoint(self, data, section):
-        # TODO: How to process the export of run here,
-        #       I don't know if a source works
         args = self._make_script(data, section)
         return '\n'.join(args['cmds'])
 
@@ -123,6 +133,7 @@ class Travis2Docker(object):
                         f_entrypoint.write("/" + section + '\n')
                 f_dockerfile.write("ENTRYPOINT /entrypoint.sh\n")
             self.chmod_execution(entryp_path)
+        self.reset()
 
 
 if __name__ == '__main__':
