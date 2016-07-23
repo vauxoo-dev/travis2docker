@@ -1,5 +1,6 @@
 import collections
 import os
+import stat
 from tempfile import gettempdir
 
 import yaml
@@ -55,32 +56,53 @@ class Travis2Docker(object):
                 # we can't use the secure encrypted variables
                 continue
             env_globals += " " + env_global
-        return env_globals.strip()
+        return "ENV " + env_globals.strip() if env_globals else ""
 
     def _compute_run(self, data, section):
+        args = self._make_script(data, section)
+        args['cmds'].append('RUN %(dst)s' % args )
+        return '\n'.join(args['cmds'])
+
+    @staticmethod
+    def chmod_execution(file_path):
+        st = os.stat(file_path)
+        os.chmod(file_path, st.st_mode | stat.S_IEXEC)
+
+    def _make_script(self, data, section):
         file_path = os.path.join(self.work_path, section)
         with open(file_path, "w") as f_section:
             f_section.write('\n'.join(data or []))
-        return "COPY " + os.path.relpath(file_path, self.work_path) + \
-               " /" + section + "\nRUN /" + section
+        args = {
+            'src': os.path.relpath(file_path, self.work_path),
+            'dst': "/" + section,
+        }
+        self.chmod_execution(file_path)
+        args['cmds'] = ["COPY %(src)s %(dst)s" % args]
+        return args
 
     def _compute_entrypoint(self, data, section):
-        file_path = os.path.join(self.work_path, "entrypoint")
-        with open(file_path, "w") as f_section:
-            f_section.write('\n'.join(data or []))
-        return "COPY " + os.path.relpath(file_path, self.work_path) + \
-               " /" + section
+        # TODO: How to process the export of run here,
+        #       I don't know if a source works
+        args = self._make_script(data, section)
+        return '\n'.join(args['cmds'])
 
     def compute_dockerfile(self):
-        with open(self.dockerfile, "w") as f_dockerfile:
+        entryp_path = os.path.join(self.work_path, "entrypoint.sh")
+        entryp_relpath = os.path.relpath(entryp_path, self.work_path)
+        with open(self.dockerfile, "w") as f_dockerfile, \
+                open(entryp_path, "w") as f_entrypoint:
             f_dockerfile.write("FROM " + self.image + "\n")
-            for section in self._sections:
+            f_dockerfile.write("COPY " + entryp_relpath + " /entrypoint.sh\n")
+            for section, type_section in self._sections.items():
                 result = self._compute(section)
                 if not result:
                     continue
-                if section == 'env':
-                    result = 'ENV ' + result
                 f_dockerfile.write(result + "\n")
+                print type_section, section
+                if type_section == 'entrypoint':
+                    f_entrypoint.write("/" + section + '\n')
+            f_dockerfile.write("ENTRYPOINT /entrypoint.sh\n")
+        self.chmod_execution(entryp_path)
 
 
 if __name__ == '__main__':
