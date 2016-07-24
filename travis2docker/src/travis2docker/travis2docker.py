@@ -33,9 +33,11 @@ class Travis2Docker(object):
 
     @property
     def dockerfile_template(self):
-        template_dir, template_name = os.path.split(self.template_path)
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir))
-        return env.get_template(template_name)
+        return self.jinja_env.get_template('Dockerfile')
+
+    @property
+    def entrypoint_template(self):
+        return self.jinja_env.get_template('entrypoint.sh')
 
     @staticmethod
     def chmod_execution(file_path):
@@ -43,14 +45,14 @@ class Travis2Docker(object):
         os.chmod(file_path, st.st_mode | stat.S_IEXEC)
 
     def __init__(self, yml_path, image, work_path=None, dockerfile=None,
-                 template_path=None):
+                 templates_path=None):
         if dockerfile is None:
             dockerfile = 'Dockerfile'
-        if template_path is None:
-            template_path = os.path.join(
-                os.path.dirname(os.path.realpath(__file__)),
-                'templates', 'Dockerfile')
-        self.template_path = template_path
+        if templates_path is None:
+            templates_path = os.path.join(
+                os.path.dirname(os.path.realpath(__file__)), 'templates')
+        self.jinja_env = \
+            jinja2.Environment(loader=jinja2.FileSystemLoader(templates_path))
         self.image = image
         self._sections = collections.OrderedDict()
         self._sections['env'] = 'env'
@@ -113,7 +115,7 @@ class Travis2Docker(object):
         dest = "/" + section
         args = {
             'copies': [(src, dest)],
-            'entrypoint': [dest] if add_entrypoint else [],
+            'entrypoints': [dest] if add_entrypoint else [],
             'runs': [dest] if add_run else [],
         }
         self.chmod_execution(file_path)
@@ -125,7 +127,7 @@ class Travis2Docker(object):
 
     def compute_dockerfile(self):
         for count, env in enumerate(self._compute('env') or [], 1):
-            kwargs = {'runs': [], 'copies': []}
+            kwargs = {'runs': [], 'copies': [], 'entrypoints': []}
             self.curr_work_path = os.path.join(self.work_path, str(count))
             if not os.path.isdir(self.curr_work_path):
                 os.mkdir(self.curr_work_path)
@@ -136,7 +138,6 @@ class Travis2Docker(object):
             with open(curr_dockerfile, "w") as f_dockerfile, \
                     open(entryp_path, "w") as f_entrypoint:
                 kwargs['image'] = self.image
-                kwargs['entrypoint'] = entryp_relpath
                 kwargs['env'] = env
                 for section, type_section in self._sections.items():
                     if section == 'env':
@@ -147,11 +148,13 @@ class Travis2Docker(object):
                     if isinstance(result, dict):
                         kwargs['copies'].extend(result['copies'])
                         kwargs['runs'].extend(result['runs'])
-                        for entrypoint in result['entrypoint']:
-                            f_entrypoint.write(entrypoint)
+                        kwargs['entrypoints'].extend(result['entrypoints'])
                 dockerfile_content = \
                     self.dockerfile_template.render(kwargs).strip('\n ')
                 f_dockerfile.write(dockerfile_content)
+                entrypoint_content = \
+                    self.entrypoint_template.render(kwargs).strip('\n ')
+                f_entrypoint.write(entrypoint_content)
             self.chmod_execution(entryp_path)
         self.reset()
 
