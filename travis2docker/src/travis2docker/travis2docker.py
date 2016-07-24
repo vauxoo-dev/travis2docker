@@ -119,6 +119,7 @@ class Travis2Docker(object):
 
     def _compute_entrypoint(self, data, section):
         args = self._make_script(data, section)
+        args['entrypoint'] = True
         return args
 
     def compute_dockerfile(self):
@@ -150,13 +151,11 @@ class Travis2Docker(object):
                         runs = result.get('runs')
                         if runs:
                             kwargs['runs'].extend(runs)
-                        elif src and dest:
+                        if result.get('entrypoint'):
                             f_entrypoint.write(dest + '\n')
                 dockerfile_content = \
                     self.dockerfile_template.render(kwargs).strip('\n ')
-                # print "dockerfile_content", dockerfile_content
                 f_dockerfile.write(dockerfile_content)
-                # f_entrypoint.write()
             self.chmod_execution(entryp_path)
         self.reset()
 
