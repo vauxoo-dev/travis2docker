@@ -37,6 +37,11 @@ class Travis2Docker(object):
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir))
         return env.get_template(template_name)
 
+    @staticmethod
+    def chmod_execution(file_path):
+        st = os.stat(file_path)
+        os.chmod(file_path, st.st_mode | stat.S_IEXEC)
+
     def __init__(self, yml_path, image, work_path=None, dockerfile=None,
                  template_path=None):
         if dockerfile is None:
@@ -87,16 +92,14 @@ class Travis2Docker(object):
             yield (env_globals + " " + env_matrix).strip()
 
     def _compute_run(self, data, section):
-        args = self._make_script(data, section)
-        args['runs'] = ['%(dest)s' % args]
+        args = self._make_script(data, section, add_run=True)
         return args
 
-    @staticmethod
-    def chmod_execution(file_path):
-        st = os.stat(file_path)
-        os.chmod(file_path, st.st_mode | stat.S_IEXEC)
+    def _compute_entrypoint(self, data, section):
+        args = self._make_script(data, section, add_entrypoint=True)
+        return args
 
-    def _make_script(self, data, section):
+    def _make_script(self, data, section, add_entrypoint=False, add_run=False):
         file_path = os.path.join(self.curr_work_path, section)
         with open(file_path, "w") as f_section:
             for var, value in self.curr_exports:
@@ -106,9 +109,12 @@ class Travis2Docker(object):
                     (var, value)
                     for _, _, var, value in self.re_export.findall(line)])
                 f_section.write('\n' + line)
+        src = "./" + os.path.relpath(file_path, self.curr_work_path)
+        dest = "/" + section
         args = {
-            'src': "./" + os.path.relpath(file_path, self.curr_work_path),
-            'dest': "/" + section,
+            'copies': [(src, dest)],
+            'entrypoint': [dest] if add_entrypoint else [],
+            'runs': [dest] if add_run else [],
         }
         self.chmod_execution(file_path)
         return args
@@ -116,11 +122,6 @@ class Travis2Docker(object):
     def reset(self):
         self.curr_work_path = None
         self.curr_exports = []
-
-    def _compute_entrypoint(self, data, section):
-        args = self._make_script(data, section)
-        args['entrypoint'] = True
-        return args
 
     def compute_dockerfile(self):
         for count, env in enumerate(self._compute('env') or [], 1):
@@ -144,14 +145,10 @@ class Travis2Docker(object):
                     if not result:
                         continue
                     if isinstance(result, dict):
-                        src, dest = result.get('src'), result.get('dest')
-                        if src and dest:
-                            kwargs['copies'].append((src, dest))
-                        runs = result.get('runs')
-                        if runs:
-                            kwargs['runs'].extend(runs)
-                        if result.get('entrypoint'):
-                            f_entrypoint.write(dest + '\n')
+                        kwargs['copies'].extend(result['copies'])
+                        kwargs['runs'].extend(result['runs'])
+                        for entrypoint in result['entrypoint']:
+                            f_entrypoint.write(entrypoint)
                 dockerfile_content = \
                     self.dockerfile_template.render(kwargs).strip('\n ')
                 f_dockerfile.write(dockerfile_content)
