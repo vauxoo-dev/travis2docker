@@ -127,7 +127,6 @@ class Travis2Docker(object):
 
     def compute_dockerfile(self):
         for count, env in enumerate(self._compute('env') or [], 1):
-            kwargs = {'runs': [], 'copies': [], 'entrypoints': []}
             self.curr_work_path = os.path.join(self.work_path, str(count))
             if not os.path.isdir(self.curr_work_path):
                 os.mkdir(self.curr_work_path)
@@ -135,6 +134,8 @@ class Travis2Docker(object):
                 os.path.join(self.curr_work_path, self.dockerfile)
             entryp_path = os.path.join(self.curr_work_path, "entrypoint.sh")
             entryp_relpath = os.path.relpath(entryp_path, self.curr_work_path)
+            kwargs = {'runs': [], 'copies': [], 'entrypoints': [],
+                      'entrypoint_path': entryp_relpath}
             with open(curr_dockerfile, "w") as f_dockerfile, \
                     open(entryp_path, "w") as f_entrypoint:
                 kwargs['image'] = self.image

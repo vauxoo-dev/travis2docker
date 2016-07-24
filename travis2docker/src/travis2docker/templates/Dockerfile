@@ -1,5 +1,5 @@
 FROM {{ image  }}
-COPY {{ entrypoint }} /entrypoint.sh
+COPY {{ entrypoint_path }} /entrypoint.sh
 ENTRYPOINT /entrypoint.sh
 
 {% if env %}ENV {{ env }}{% endif %}
