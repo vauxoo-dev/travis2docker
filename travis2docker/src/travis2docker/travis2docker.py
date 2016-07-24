@@ -11,6 +11,9 @@ RE_ENV_STR = r"(?P<var>[\w]*)[ ]*[\=][ ]*[\"\']{0,1}" + \
 RE_EXPORT_STR = r"^(?P<export>export|EXPORT)( )+" + RE_ENV_STR
 
 
+# TODO: Add .ssh keys
+# TODO: Add global environment variables of travis (TRAVIS_BUILD_DIR)
+# TODO: Clone repository
 class Travis2Docker(object):
 
     re_export = re.compile(RE_EXPORT_STR, re.M)
