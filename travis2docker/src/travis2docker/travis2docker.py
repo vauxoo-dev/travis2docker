@@ -146,10 +146,10 @@ class Travis2Docker(object):
                     result = self._compute(section)
                     if not result:
                         continue
-                    if isinstance(result, dict):
-                        kwargs['copies'].extend(result['copies'])
-                        kwargs['runs'].extend(result['runs'])
-                        kwargs['entrypoints'].extend(result['entrypoints'])
+                    keys_to_extend = ['copies', 'runs', 'entrypoints'] \
+                        if isinstance(result, dict) else []
+                    for key_to_extend in keys_to_extend:
+                        kwargs[key_to_extend].extend(result[key_to_extend])
                 dockerfile_content = \
                     self.dockerfile_template.render(kwargs).strip('\n ')
                 f_dockerfile.write(dockerfile_content)
