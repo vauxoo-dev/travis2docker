@@ -84,7 +84,7 @@ class Travis2Docker(object):
             env_globals += " " + env_global
         env_globals = env_globals.strip()
         for env_matrix in data.get('matrix', []):
-            yield "ENV " + (env_globals + " " + env_matrix).strip()
+            yield (env_globals + " " + env_matrix).strip()
 
     def _compute_run(self, data, section):
         args = self._make_script(data, section)
@@ -123,8 +123,7 @@ class Travis2Docker(object):
         return args
 
     def compute_dockerfile(self):
-        # TODO: If env is not defined
-        for count, env in enumerate(self._compute('env'), 1):
+        for count, env in enumerate(self._compute('env') or [], 1):
             kwargs = {'runs': [], 'copies': []}
             self.curr_work_path = os.path.join(self.work_path, str(count))
             if not os.path.isdir(self.curr_work_path):
