@@ -86,6 +86,9 @@ class Travis2Docker(object):
             for var, value in self.curr_exports:
                 f_section.write('\nexport %s=%s' % (var, value))
             for line in data:
+                # if self.re_export.findall(line):
+                #     print "section", section, "line", line
+                #     import pdb;pdb.set_trace()
                 self.curr_exports.extend([
                     (var, value)
                     for _, _, var, value in self.re_export.findall(line)])
@@ -107,8 +110,6 @@ class Travis2Docker(object):
         return '\n'.join(args['cmds'])
 
     def compute_dockerfile(self):
-        sections = self._sections.copy()
-        sections.pop('env')
         for count, env in enumerate(self._compute('env'), 1):
             self.curr_work_path = os.path.join(self.work_path, str(count))
             if not os.path.isdir(self.curr_work_path):
@@ -122,7 +123,9 @@ class Travis2Docker(object):
                 f_dockerfile.write("FROM " + self.image + "\n")
                 f_dockerfile.write(env + "\n")
                 f_dockerfile.write("COPY " + entryp_relpath + " /entrypoint.sh\n")
-                for section, type_section in sections.items():
+                for section, type_section in self._sections.items():
+                    if section == 'env':
+                        continue
                     result = self._compute(section)
                     if not result:
                         continue
@@ -137,5 +140,7 @@ class Travis2Docker(object):
 if __name__ == '__main__':
     yml_path = "/Users/moylop260/odoo/yoytec/.travis.yml"
     yml_path = "~/odoo/l10n-argentina"
+    yml_path = "~/odoo/yoytec"
     t2d = Travis2Docker(yml_path, 'vauxoo/odoo-80-image-shippable-auto')
     t2d.compute_dockerfile()
+    print t2d.work_path
