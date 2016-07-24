@@ -6,9 +6,9 @@ from tempfile import gettempdir
 
 import yaml
 
-RE_ENV_STR = r"(?P<var>[\w]*)[  ]*[\=][  ]*[\"\']{0,1}" + \
+RE_ENV_STR = r"(?P<var>[\w]*)[ ]*[\=][ ]*[\"\']{0,1}" + \
              r"(?P<value>[\w\.\-\_/\$\{\}\:,\(\)\#\* ]*)[\"\']{0,1}"
-RE_EXPORT_STR = r"^(?P<export>export|EXPORT)(  )+" + RE_ENV_STR
+RE_EXPORT_STR = r"^(?P<export>export|EXPORT)( )+" + RE_ENV_STR
 
 
 class Travis2Docker(object):
@@ -84,10 +84,8 @@ class Travis2Docker(object):
         file_path = os.path.join(self.curr_work_path, section)
         with open(file_path, "w") as f_section:
             for var, value in self.curr_exports:
-                f_section.write('\nEXPORT %s=%s' % (var, value))
+                f_section.write('\nexport %s=%s' % (var, value))
             for line in data:
-                if 'export' in line.lower():
-                    import pdb;pdb.set_trace()
                 self.curr_exports.extend([
                     (var, value)
                     for _, _, var, value in self.re_export.findall(line)])
@@ -141,5 +139,3 @@ if __name__ == '__main__':
     yml_path = "~/odoo/l10n-argentina"
     t2d = Travis2Docker(yml_path, 'vauxoo/odoo-80-image-shippable-auto')
     t2d.compute_dockerfile()
-    print t2d.work_path
-    # print open(t2d.dockerfile).read()
