@@ -1,0 +1,16 @@
+[paths]
+source =
+   src/travis2docker
+   */site-packages/travis2docker
+
+[run]
+branch = True
+source =
+    travis2docker
+    tests
+parallel = true
+
+[report]
+show_missing = true
+precision = 2
+omit = *migrations*
