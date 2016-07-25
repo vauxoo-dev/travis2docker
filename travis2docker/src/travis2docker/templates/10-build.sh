@@ -1,1 +1,1 @@
-docker build $1 -t {{ image }} {{ dirname_dockerfile }}
+docker build {{ extra_params }} $1 -t {{ image }} {{ dirname_dockerfile }}

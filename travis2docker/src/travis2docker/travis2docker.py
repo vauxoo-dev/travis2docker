@@ -18,6 +18,8 @@ class Travis2Docker(object):
     re_export = re.compile(RE_EXPORT_STR, re.M)
     curr_work_path = None
     curr_exports = []
+    build_extra_params = None
+    run_extra_params = None
 
     @staticmethod
     def load_yml(yml_path):
@@ -112,15 +114,19 @@ class Travis2Docker(object):
             yield (env_globals + " " + env_matrix).strip()
 
     def _compute_run(self, data, section):
-        args = self._make_script(data, section, add_run=True)
+        args = self._make_script(data, section, add_run=True, prefix='files')
         return args
 
     def _compute_entrypoint(self, data, section):
-        args = self._make_script(data, section, add_entrypoint=True)
+        args = self._make_script(data, section, add_entrypoint=True,
+                                 prefix='files')
         return args
 
-    def _make_script(self, data, section, add_entrypoint=False, add_run=False):
-        file_path = os.path.join(self.curr_work_path, section)
+    def _make_script(self, data, section, add_entrypoint=False, add_run=False,
+                     prefix=""):
+        file_path = os.path.join(self.curr_work_path, prefix, section)
+        if not os.path.isdir(os.path.dirname(file_path)):
+            os.mkdir(os.path.dirname(file_path))
         with open(file_path, "w") as f_section:
             for var, value in self.curr_exports:
                 f_section.write('\nexport %s=%s' % (var, value))
@@ -143,6 +149,26 @@ class Travis2Docker(object):
         self.curr_work_path = None
         self.curr_exports = []
 
+    def compute_build_scripts(self, prefix_build):
+        build_path = os.path.join(self.curr_work_path, "10-build.sh")
+        run_path = os.path.join(self.curr_work_path, "20-run.sh")
+        new_image = self.new_image + '_' + str(prefix_build)
+        with open(build_path, "w") as f_build, \
+                open(run_path, "w") as f_run:
+            build_content = self.build_template.render(
+                image=new_image,
+                dirname_dockerfile=self.curr_work_path,
+                extra_params=self.build_extra_params or "",
+            ).strip('\n ')
+            f_build.write(build_content)
+            run_content = self.run_template.render(
+                image=new_image,
+                extra_params=self.run_extra_params or "",
+            ).strip('\n ')
+            f_run.write(run_content)
+        self.chmod_execution(build_path)
+        self.chmod_execution(run_path)
+
     def compute_dockerfile(self, skip_after_success=False):
         for count, env in enumerate(self._compute('env') or [], 1):
             self.curr_work_path = os.path.join(self.work_path, str(count))
@@ -150,9 +176,10 @@ class Travis2Docker(object):
                 os.mkdir(self.curr_work_path)
             curr_dockerfile = \
                 os.path.join(self.curr_work_path, self.dockerfile)
-            entryp_path = os.path.join(self.curr_work_path, "entrypoint.sh")
-            build_path = os.path.join(self.curr_work_path, "10-build.sh")
-            run_path = os.path.join(self.curr_work_path, "20-run.sh")
+            entryp_path = os.path.join(self.curr_work_path, "files",
+                                       "entrypoint.sh")
+            if not os.path.isdir(os.path.join(self.curr_work_path, "files")):
+                os.mkdir(os.path.join(self.curr_work_path, "files"))
             entryp_relpath = os.path.relpath(entryp_path, self.curr_work_path)
             copies = []
             for copy_path, dest in self.copy_paths:
@@ -162,9 +189,7 @@ class Travis2Docker(object):
                       'env': env,
                       }
             with open(curr_dockerfile, "w") as f_dockerfile, \
-                    open(entryp_path, "w") as f_entrypoint, \
-                    open(run_path, "w") as f_run, \
-                    open(build_path, "w") as f_build:
+                    open(entryp_path, "w") as f_entrypoint:
                 for section, _ in self._sections.items():
                     if section == 'env':
                         continue
@@ -184,18 +209,7 @@ class Travis2Docker(object):
                 entrypoint_content = \
                     self.entrypoint_template.render(kwargs).strip('\n ')
                 f_entrypoint.write(entrypoint_content)
-                new_image = self.new_image + '_' + str(count)
-                build_content = \
-                    self.build_template.render(
-                        image=new_image,
-                        dirname_dockerfile=self.curr_work_path).strip('\n ')
-                f_build.write(build_content)
-                run_content = \
-                    self.run_template.render(image=new_image).\
-                    strip('\n ')
-                f_run.write(run_content)
-            self.chmod_execution(run_path)
-            self.chmod_execution(build_path)
+            self.compute_build_scripts(count)
             self.chmod_execution(entryp_path)
         self.reset()
 
@@ -232,5 +246,7 @@ if __name__ == '__main__':
         },
         copy_paths=[("$HOME/.ssh", "$HOME/.ssh")]
     )
+    t2d.run_extra_params = "-itd --entrypoint=bash -e TRAVIS_PULL_REQUEST=1"
+    t2d.build_extra_params = "--rm"
     t2d.compute_dockerfile(skip_after_success=True)
     print t2d.work_path

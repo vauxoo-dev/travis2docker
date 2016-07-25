@@ -1,1 +1,1 @@
-docker run $1 -itP {{ image }} $2
+docker run {{ extra_params }} $1 -itP {{ image }} $2
