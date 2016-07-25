@@ -13,7 +13,6 @@ RE_ENV_STR = r"(?P<var>[\w]*)[ ]*[\=][ ]*[\"\']{0,1}" + \
 RE_EXPORT_STR = r"^(?P<export>export|EXPORT)( )+" + RE_ENV_STR
 
 
-# TODO: Add support for optional after_success
 class Travis2Docker(object):
 
     re_export = re.compile(RE_EXPORT_STR, re.M)
