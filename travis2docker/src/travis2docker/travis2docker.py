@@ -194,6 +194,8 @@ class Travis2Docker(object):
                     self.run_template.render(image=new_image).\
                     strip('\n ')
                 f_run.write(run_content)
+            self.chmod_execution(run_path)
+            self.chmod_execution(build_path)
             self.chmod_execution(entryp_path)
         self.reset()
 
