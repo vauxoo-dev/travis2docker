@@ -1,6 +1,7 @@
 import collections
 import os
 import re
+import shutil
 import stat
 from tempfile import gettempdir
 
@@ -45,12 +46,23 @@ class Travis2Docker(object):
         os.chmod(file_path, st.st_mode | stat.S_IEXEC)
 
     def __init__(self, yml_path, image, work_path=None, dockerfile=None,
-                 templates_path=None):
+                 templates_path=None, os_kwargs=None, ssh_key_files=None,
+                 ):
+        if os_kwargs is None:
+            os_kwargs = {}
         if dockerfile is None:
             dockerfile = 'Dockerfile'
         if templates_path is None:
             templates_path = os.path.join(
                 os.path.dirname(os.path.realpath(__file__)), 'templates')
+        if ssh_key_files is None:
+            ssh_key_files = {}
+        self.file_id_rsa = ssh_key_files.get('id_rsa')
+        self.file_id_rsa_pub = ssh_key_files.get('id_rsa_pub')
+        self.file_authorized_keys = ssh_key_files.get('authorized_keys')
+
+        self.ssh_key_files = ssh_key_files
+        self.os_kwargs = os_kwargs
         self.jinja_env = \
             jinja2.Environment(loader=jinja2.FileSystemLoader(templates_path))
         self.image = image
@@ -134,8 +146,12 @@ class Travis2Docker(object):
                 os.path.join(self.curr_work_path, self.dockerfile)
             entryp_path = os.path.join(self.curr_work_path, "entrypoint.sh")
             entryp_relpath = os.path.relpath(entryp_path, self.curr_work_path)
-            kwargs = {'runs': [], 'copies': [], 'entrypoints': [],
-                      'entrypoint_path': entryp_relpath}
+            copies = self.copy_ssh(self.file_id_rsa, self.file_id_rsa_pub,
+                                   self.file_authorized_keys)
+            kwargs = {'runs': [], 'copies': copies, 'entrypoints': [],
+                      'entrypoint_path': entryp_relpath,
+                      'new_dirs': set(),
+                      }
             with open(curr_dockerfile, "w") as f_dockerfile, \
                     open(entryp_path, "w") as f_entrypoint:
                 kwargs['image'] = self.image
@@ -150,6 +166,12 @@ class Travis2Docker(object):
                         if isinstance(result, dict) else []
                     for key_to_extend in keys_to_extend:
                         kwargs[key_to_extend].extend(result[key_to_extend])
+                for _, dest in kwargs['copies']:
+                    new_dirname = os.path.dirname(dest)
+                    if new_dirname == '/':
+                        continue
+                    kwargs['new_dirs'].add(new_dirname)
+                kwargs.update(self.os_kwargs)
                 dockerfile_content = \
                     self.dockerfile_template.render(kwargs).strip('\n ')
                 f_dockerfile.write(dockerfile_content)
@@ -159,15 +181,67 @@ class Travis2Docker(object):
             self.chmod_execution(entryp_path)
         self.reset()
 
+    def copy(self, files, prefix="", prefix_docker=""):
+        """
+        :param files list: List of tuples with
+            [(source, destination, docker_destination)]
+        """
+        copies = []
+        for src, dest, docker_destination in files:
+            if not src:
+                continue
+            src = os.path.expandvars(os.path.expanduser(src))
+            dest = os.path.join(prefix, dest)
+            dest_path = os.path.expandvars(os.path.expanduser(
+                os.path.join(self.curr_work_path, dest)))
+            dirname = os.path.dirname(dest_path)
+            if not os.path.isdir(dirname):
+                # TODO: "mkdir -p"
+                os.mkdir(dirname)
+            if os.path.isfile(dest_path):
+                os.remove(dest_path)
+            shutil.copy(src, dest_path)
+            copies.append(
+                (dest, os.path.join(prefix_docker, docker_destination)))
+        return copies
+
+    def copy_ssh(self, file_id_rsa, file_id_rsa_pub=None,
+                 file_authorized_keys=None):
+        prefix = 'ssh'
+        prefix_docker = '$HOME/.ssh'
+        copies = []
+        if file_id_rsa_pub:
+            copies.extend(
+                self.copy([
+                    (file_id_rsa, 'id_rsa', 'id_rsa'),
+                    (file_id_rsa_pub, 'id_rsa.pub', 'id_rsa.pub'),
+                    (file_authorized_keys, 'authorized_keys',
+                        'authorized_keys'),
+                ], prefix=prefix, prefix_docker=prefix_docker))
+        return copies
+
 
 if __name__ == '__main__':
     yml_path = "/Users/moylop260/odoo/yoytec/.travis.yml"
     yml_path = "~/odoo/l10n-argentina"
     yml_path = "~/odoo/yoytec"
-    t2d = Travis2Docker(yml_path, 'vauxoo/odoo-80-image-shippable-auto')
+    image = 'vauxoo/odoo-80-image-shippable-auto'
+    t2d = Travis2Docker(
+        yml_path, image, os_kwargs={
+            'user': 'shippable',
+            'repo_owner': 'Vauxoo',
+            'repo_project': 'yoytec',
+            'add_self_rsa_pub': True,
+            'remotes': ['Vauxoo', 'Vauxoo-dev'],
+            'revision': 'pull/2',
+            'git_email': 'moylop@vx.com',
+            'git_user': 'moy6',
+        },
+        ssh_key_files = {
+            'id_rsa': "$HOME/.ssh/id_rsa",
+            'id_rsa_pub': "$HOME/.ssh/id_rsa.pub",
+            'authorized_keys': "${HOME}/.ssh/authorized_keys",
+        }
+    )
     t2d.compute_dockerfile()
     print t2d.work_path
-    # print t2d.dockerfile_template
-    # kwargs = {'image': 'vauxoo'}
-    # dockerfile_content = t2d.dockerfile_template.render(kwargs)
-    # print dockerfile_content
