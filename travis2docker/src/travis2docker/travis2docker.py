@@ -144,7 +144,7 @@ class Travis2Docker(object):
         self.curr_work_path = None
         self.curr_exports = []
 
-    def compute_dockerfile(self):
+    def compute_dockerfile(self, skip_after_success=False):
         for count, env in enumerate(self._compute('env') or [], 1):
             self.curr_work_path = os.path.join(self.work_path, str(count))
             if not os.path.isdir(self.curr_work_path):
@@ -169,6 +169,8 @@ class Travis2Docker(object):
                 kwargs['env'] = env
                 for section, type_section in self._sections.items():
                     if section == 'env':
+                        continue
+                    if skip_after_success and section == 'after_success':
                         continue
                     result = self._compute(section)
                     if not result:
@@ -231,5 +233,5 @@ if __name__ == '__main__':
         },
         copy_paths=[("$HOME/.ssh", "$HOME/.ssh")]
     )
-    t2d.compute_dockerfile()
+    t2d.compute_dockerfile(skip_after_success=True)
     print t2d.work_path
