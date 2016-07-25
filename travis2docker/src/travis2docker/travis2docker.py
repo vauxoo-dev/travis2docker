@@ -13,9 +13,7 @@ RE_ENV_STR = r"(?P<var>[\w]*)[ ]*[\=][ ]*[\"\']{0,1}" + \
 RE_EXPORT_STR = r"^(?P<export>export|EXPORT)( )+" + RE_ENV_STR
 
 
-# TODO: Add .ssh keys
-# TODO: Add global environment variables of travis (TRAVIS_BUILD_DIR)
-# TODO: Clone repository
+# TODO: Add support for optional after_success
 class Travis2Docker(object):
 
     re_export = re.compile(RE_EXPORT_STR, re.M)
@@ -37,8 +35,23 @@ class Travis2Docker(object):
         return self.jinja_env.get_template('Dockerfile')
 
     @property
+    def new_image(self):
+        image_name = self.os_kwargs['repo_owner'] + '-' + \
+            self.os_kwargs['repo_project'] + ':' + \
+            self.os_kwargs['revision'].replace('/', '_')
+        return image_name.lower()
+
+    @property
     def entrypoint_template(self):
         return self.jinja_env.get_template('entrypoint.sh')
+
+    @property
+    def build_template(self):
+        return self.jinja_env.get_template('10-build.sh')
+
+    @property
+    def run_template(self):
+        return self.jinja_env.get_template('20-run.sh')
 
     @staticmethod
     def chmod_execution(file_path):
@@ -139,6 +152,8 @@ class Travis2Docker(object):
             curr_dockerfile = \
                 os.path.join(self.curr_work_path, self.dockerfile)
             entryp_path = os.path.join(self.curr_work_path, "entrypoint.sh")
+            build_path = os.path.join(self.curr_work_path, "10-build.sh")
+            run_path = os.path.join(self.curr_work_path, "20-run.sh")
             entryp_relpath = os.path.relpath(entryp_path, self.curr_work_path)
             copies = []
             for copy_path, dest in self.copy_paths:
@@ -147,7 +162,9 @@ class Travis2Docker(object):
                       'entrypoint_path': entryp_relpath,
                       }
             with open(curr_dockerfile, "w") as f_dockerfile, \
-                    open(entryp_path, "w") as f_entrypoint:
+                    open(entryp_path, "w") as f_entrypoint, \
+                    open(run_path, "w") as f_run, \
+                    open(build_path, "w") as f_build:
                 kwargs['image'] = self.image
                 kwargs['env'] = env
                 for section, type_section in self._sections.items():
@@ -167,19 +184,27 @@ class Travis2Docker(object):
                 entrypoint_content = \
                     self.entrypoint_template.render(kwargs).strip('\n ')
                 f_entrypoint.write(entrypoint_content)
+                new_image = self.new_image + '_' + str(count)
+                build_content = \
+                    self.build_template.render(
+                        image=new_image,
+                        dirname_dockerfile=self.curr_work_path).strip('\n ')
+                f_build.write(build_content)
+                run_content = \
+                    self.run_template.render(image=new_image).\
+                    strip('\n ')
+                f_run.write(run_content)
             self.chmod_execution(entryp_path)
         self.reset()
 
-    def copy_path(self, path, prefix=None):
+    def copy_path(self, path):
         """
         :param paths list: List of paths to copy
         """
         src = os.path.expandvars(os.path.expanduser(path))
         basename = os.path.basename(src)
-        if not prefix:
-            prefix = basename
         dest_path = os.path.expandvars(os.path.expanduser(
-            os.path.join(self.curr_work_path, prefix)))
+            os.path.join(self.curr_work_path, basename)))
         if os.path.isdir(dest_path):
             shutil.rmtree(dest_path)
         shutil.copytree(src, dest_path)
