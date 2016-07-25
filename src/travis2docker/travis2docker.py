@@ -170,6 +170,7 @@ class Travis2Docker(object):
         self.chmod_execution(run_path)
 
     def compute_dockerfile(self, skip_after_success=False):
+        work_paths = []
         for count, env in enumerate(self._compute('env') or [], 1):
             self.curr_work_path = os.path.join(self.work_path, str(count))
             if not os.path.isdir(self.curr_work_path):
@@ -211,7 +212,9 @@ class Travis2Docker(object):
                 f_entrypoint.write(entrypoint_content)
             self.compute_build_scripts(count)
             self.chmod_execution(entryp_path)
+            work_paths.append(self.curr_work_path)
         self.reset()
+        return work_paths
 
     def copy_path(self, path):
         """

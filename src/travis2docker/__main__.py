@@ -8,7 +8,15 @@ Why does this file exist, and why __main__? For more info, read:
 - https://docs.python.org/2/using/cmdline.html#cmdoption-m
 - https://docs.python.org/3/using/cmdline.html#cmdoption-m
 """
-from travis2docker.cli import main
+from sys import stdout
+
+from .cli import main
+
 
 if __name__ == "__main__":
-    main()
+    FNAME_SCRIPTS = main()
+    stdout.write(
+        'Script generated: \n' +
+        '\n'.join(FNAME_SCRIPTS) +
+        '\n'
+    )
