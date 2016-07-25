@@ -202,7 +202,7 @@ if __name__ == '__main__':
             'git_email': 'moylop@vx.com',
             'git_user': 'moy6',
         },
-        copy_paths = [("$HOME/.ssh", "$HOME/.ssh")]
+        copy_paths=[("$HOME/.ssh", "$HOME/.ssh")]
     )
     t2d.compute_dockerfile()
     print t2d.work_path

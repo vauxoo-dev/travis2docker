@@ -1,15 +1,10 @@
 FROM {{ image  }}
 ADD {{ entrypoint_path }} /entrypoint.sh
-
 ENV HOME={% if user == 'root' %}/root{% else %}/home/{{ user }}{% endif %}
-{% for new_dir in new_dirs %}
-RUN mkdir -p {{ new_dir }} && chown {{ user }}:{{ user }} {{ new_dir }}
+{% for new_dir in new_dirs %}RUN mkdir -p {{ new_dir }} && chown {{ user }}:{{ user }} {{ new_dir }}{% endfor %}
+{% for src, dest in copies %}ADD {{ src }} {{ dest }}
+RUN chown -R {{ user }}:{{ user }} {{dest}}
 {% endfor %}
-
-{% for src, dest in copies %}
-ADD {{ src }} {{ dest }}
-RUN chown -R {{ user }}:{{ user }} {{dest}} {% endfor %}
-
 USER {{ user }}
 ENV TRAVIS_REPO_SLUG={{ repo_owner }}/{{ repo_project }}
 ENV TRAVIS_BUILD_DIR=${HOME}/${TRAVIS_REPO_SLUG}
@@ -27,8 +22,8 @@ RUN git init ${TRAVIS_BUILD_DIR} \
 {% endfor %}
 {% endif %}
    && echo 1  # TODO: Migrate to '&&'.join([for])
-WORKDIR ${TRAVIS_BUILD_DIR}
 {% if add_self_rsa_pub %}RUN cat ${HOME}/.ssh/id_rsa.pub | tee -a ${HOME}/.ssh/authorized_keys {% endif %}
 {% if env %}ENV {{ env }}{% endif %}
+WORKDIR ${TRAVIS_BUILD_DIR}
 {% for run in runs %}# RUN {{ run }} {% endfor %}
 ENTRYPOINT /entrypoint.sh
