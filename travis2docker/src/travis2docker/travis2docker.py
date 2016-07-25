@@ -141,9 +141,9 @@ class Travis2Docker(object):
             entryp_path = os.path.join(self.curr_work_path, "entrypoint.sh")
             entryp_relpath = os.path.relpath(entryp_path, self.curr_work_path)
             copies = []
-            for copy_path in self.copy_paths:
-                copies.append(self.copy_path(copy_path))
-            kwargs = {'runs': [], 'copies': [], 'entrypoints': [],
+            for copy_path, dest in self.copy_paths:
+                copies.append((self.copy_path(copy_path), dest))
+            kwargs = {'runs': [], 'copies': copies, 'entrypoints': [],
                       'entrypoint_path': entryp_relpath,
                       }
             with open(curr_dockerfile, "w") as f_dockerfile, \
@@ -170,21 +170,21 @@ class Travis2Docker(object):
             self.chmod_execution(entryp_path)
         self.reset()
 
-    def copy_path(self, path, prefix="", prefix_docker=""):
+    def copy_path(self, path, prefix=None):
         """
         :param paths list: List of paths to copy
         """
-        src = os.path.expandvars(os.path.expanduser(src))
+        src = os.path.expandvars(os.path.expanduser(path))
         basename = os.path.basename(src)
-        dest = os.path.join(prefix, basename)
+        if not prefix:
+            prefix = basename
         dest_path = os.path.expandvars(os.path.expanduser(
-            os.path.join(self.curr_work_path, dest)))
+            os.path.join(self.curr_work_path, prefix)))
         if os.path.isdir(dest_path):
-            os.removedirs(dest_path)
-        # TODO: mkdir -p
-        os.mkdir(dest_path)
+            shutil.rmtree(dest_path)
         shutil.copytree(src, dest_path)
-        return (dest, prefix_docker)
+        return os.path.relpath(dest_path, self.curr_work_path)
+
 
 if __name__ == '__main__':
     yml_path = "/Users/moylop260/odoo/yoytec/.travis.yml"
@@ -202,11 +202,7 @@ if __name__ == '__main__':
             'git_email': 'moylop@vx.com',
             'git_user': 'moy6',
         },
-        ssh_key_files = {
-            'id_rsa': "$HOME/.ssh/id_rsa",
-            'id_rsa_pub': "$HOME/.ssh/id_rsa.pub",
-            'authorized_keys': "${HOME}/.ssh/authorized_keys",
-        }
+        copy_paths = [("$HOME/.ssh", "$HOME/.ssh")]
     )
     t2d.compute_dockerfile()
     print t2d.work_path
