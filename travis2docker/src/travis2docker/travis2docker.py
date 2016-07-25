@@ -46,7 +46,7 @@ class Travis2Docker(object):
         os.chmod(file_path, st.st_mode | stat.S_IEXEC)
 
     def __init__(self, yml_path, image, work_path=None, dockerfile=None,
-                 templates_path=None, os_kwargs=None, ssh_key_files=None,
+                 templates_path=None, os_kwargs=None, copy_paths=None,
                  ):
         if os_kwargs is None:
             os_kwargs = {}
@@ -55,13 +55,7 @@ class Travis2Docker(object):
         if templates_path is None:
             templates_path = os.path.join(
                 os.path.dirname(os.path.realpath(__file__)), 'templates')
-        if ssh_key_files is None:
-            ssh_key_files = {}
-        self.file_id_rsa = ssh_key_files.get('id_rsa')
-        self.file_id_rsa_pub = ssh_key_files.get('id_rsa_pub')
-        self.file_authorized_keys = ssh_key_files.get('authorized_keys')
-
-        self.ssh_key_files = ssh_key_files
+        self.copy_paths = copy_paths
         self.os_kwargs = os_kwargs
         self.jinja_env = \
             jinja2.Environment(loader=jinja2.FileSystemLoader(templates_path))
@@ -78,7 +72,7 @@ class Travis2Docker(object):
             if not os.path.isdir(self.work_path):
                 os.mkdir(self.work_path)
         else:
-            self.work_path = os.path.expandvars(os.path.expanduser(root_path))
+            self.work_path = os.path.expandvars(os.path.expanduser(work_path))
         self.dockerfile = dockerfile
 
     def _compute(self, section):
@@ -146,11 +140,11 @@ class Travis2Docker(object):
                 os.path.join(self.curr_work_path, self.dockerfile)
             entryp_path = os.path.join(self.curr_work_path, "entrypoint.sh")
             entryp_relpath = os.path.relpath(entryp_path, self.curr_work_path)
-            copies = self.copy_ssh(self.file_id_rsa, self.file_id_rsa_pub,
-                                   self.file_authorized_keys)
-            kwargs = {'runs': [], 'copies': copies, 'entrypoints': [],
+            copies = []
+            for copy_path in self.copy_paths:
+                copies.append(self.copy_path(copy_path))
+            kwargs = {'runs': [], 'copies': [], 'entrypoints': [],
                       'entrypoint_path': entryp_relpath,
-                      'new_dirs': set(),
                       }
             with open(curr_dockerfile, "w") as f_dockerfile, \
                     open(entryp_path, "w") as f_entrypoint:
@@ -166,11 +160,6 @@ class Travis2Docker(object):
                         if isinstance(result, dict) else []
                     for key_to_extend in keys_to_extend:
                         kwargs[key_to_extend].extend(result[key_to_extend])
-                for _, dest in kwargs['copies']:
-                    new_dirname = os.path.dirname(dest)
-                    if new_dirname == '/':
-                        continue
-                    kwargs['new_dirs'].add(new_dirname)
                 kwargs.update(self.os_kwargs)
                 dockerfile_content = \
                     self.dockerfile_template.render(kwargs).strip('\n ')
@@ -181,45 +170,21 @@ class Travis2Docker(object):
             self.chmod_execution(entryp_path)
         self.reset()
 
-    def copy(self, files, prefix="", prefix_docker=""):
+    def copy_path(self, path, prefix="", prefix_docker=""):
         """
-        :param files list: List of tuples with
-            [(source, destination, docker_destination)]
+        :param paths list: List of paths to copy
         """
-        copies = []
-        for src, dest, docker_destination in files:
-            if not src:
-                continue
-            src = os.path.expandvars(os.path.expanduser(src))
-            dest = os.path.join(prefix, dest)
-            dest_path = os.path.expandvars(os.path.expanduser(
-                os.path.join(self.curr_work_path, dest)))
-            dirname = os.path.dirname(dest_path)
-            if not os.path.isdir(dirname):
-                # TODO: "mkdir -p"
-                os.mkdir(dirname)
-            if os.path.isfile(dest_path):
-                os.remove(dest_path)
-            shutil.copy(src, dest_path)
-            copies.append(
-                (dest, os.path.join(prefix_docker, docker_destination)))
-        return copies
-
-    def copy_ssh(self, file_id_rsa, file_id_rsa_pub=None,
-                 file_authorized_keys=None):
-        prefix = 'ssh'
-        prefix_docker = '$HOME/.ssh'
-        copies = []
-        if file_id_rsa_pub:
-            copies.extend(
-                self.copy([
-                    (file_id_rsa, 'id_rsa', 'id_rsa'),
-                    (file_id_rsa_pub, 'id_rsa.pub', 'id_rsa.pub'),
-                    (file_authorized_keys, 'authorized_keys',
-                        'authorized_keys'),
-                ], prefix=prefix, prefix_docker=prefix_docker))
-        return copies
-
+        src = os.path.expandvars(os.path.expanduser(src))
+        basename = os.path.basename(src)
+        dest = os.path.join(prefix, basename)
+        dest_path = os.path.expandvars(os.path.expanduser(
+            os.path.join(self.curr_work_path, dest)))
+        if os.path.isdir(dest_path):
+            os.removedirs(dest_path)
+        # TODO: mkdir -p
+        os.mkdir(dest_path)
+        shutil.copytree(src, dest_path)
+        return (dest, prefix_docker)
 
 if __name__ == '__main__':
     yml_path = "/Users/moylop260/odoo/yoytec/.travis.yml"
