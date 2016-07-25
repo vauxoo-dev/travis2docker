@@ -21,12 +21,12 @@ class Travis2Docker(object):
 
     @staticmethod
     def load_yml(yml_path):
-        yml_path = os.path.expandvars(os.path.expanduser(yml_path))
-        if os.path.isdir(yml_path):
-            yml_path = os.path.join(yml_path, '.travis.yml')
-        if not os.path.isfile(yml_path):
+        yml_path_expanded = os.path.expandvars(os.path.expanduser(yml_path))
+        if os.path.isdir(yml_path_expanded):
+            yml_path_expanded = os.path.join(yml_path_expanded, '.travis.yml')
+        if not os.path.isfile(yml_path_expanded):
             return
-        with open(yml_path, "r") as f_yml:
+        with open(yml_path_expanded, "r") as f_yml:
             return yaml.load(f_yml)
 
     @property
@@ -54,8 +54,7 @@ class Travis2Docker(object):
 
     @staticmethod
     def chmod_execution(file_path):
-        st = os.stat(file_path)
-        os.chmod(file_path, st.st_mode | stat.S_IEXEC)
+        os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
 
     def __init__(self, yml_path, image, work_path=None, dockerfile=None,
                  templates_path=None, os_kwargs=None, copy_paths=None,
@@ -97,7 +96,8 @@ class Travis2Docker(object):
         job_method = getattr(self, '_compute_' + section_type)
         return job_method(section_data, section)
 
-    def _compute_env(self, data, section):
+    @staticmethod
+    def _compute_env(data, _):
         if isinstance(data, list):
             # old version without matrix
             data = {'matrix': data}
@@ -158,15 +158,14 @@ class Travis2Docker(object):
             for copy_path, dest in self.copy_paths:
                 copies.append((self.copy_path(copy_path), dest))
             kwargs = {'runs': [], 'copies': copies, 'entrypoints': [],
-                      'entrypoint_path': entryp_relpath,
+                      'entrypoint_path': entryp_relpath, 'image': self.image,
+                      'env': env,
                       }
             with open(curr_dockerfile, "w") as f_dockerfile, \
                     open(entryp_path, "w") as f_entrypoint, \
                     open(run_path, "w") as f_run, \
                     open(build_path, "w") as f_build:
-                kwargs['image'] = self.image
-                kwargs['env'] = env
-                for section, type_section in self._sections.items():
+                for section, _ in self._sections.items():
                     if section == 'env':
                         continue
                     if skip_after_success and section == 'after_success':
@@ -214,13 +213,14 @@ class Travis2Docker(object):
         return os.path.relpath(dest_path, self.curr_work_path)
 
 
+# pylint: disable=invalid-name
 if __name__ == '__main__':
-    yml_path = "/Users/moylop260/odoo/yoytec/.travis.yml"
-    yml_path = "~/odoo/l10n-argentina"
-    yml_path = "~/odoo/yoytec"
-    image = 'vauxoo/odoo-80-image-shippable-auto'
+    yml_path_wrk = "/Users/moylop260/odoo/yoytec/.travis.yml"
+    yml_path_wrk = "~/odoo/l10n-argentina"
+    yml_path_wrk = "~/odoo/yoytec"
+    image_wrk = 'vauxoo/odoo-80-image-shippable-auto'
     t2d = Travis2Docker(
-        yml_path, image, os_kwargs={
+        yml_path_wrk, image_wrk, os_kwargs={
             'user': 'shippable',
             'repo_owner': 'Vauxoo',
             'repo_project': 'yoytec',
