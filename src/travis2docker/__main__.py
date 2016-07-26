@@ -12,7 +12,6 @@ from sys import stdout
 
 from .cli import main
 
-
 if __name__ == "__main__":
     FNAME_SCRIPTS = main()
     stdout.write(

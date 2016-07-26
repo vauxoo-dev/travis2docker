@@ -5,8 +5,8 @@ import shutil
 import stat
 from tempfile import gettempdir
 
-import yaml
 import jinja2
+import yaml
 
 RE_ENV_STR = r"(?P<var>[\w]*)[ ]*[\=][ ]*[\"\']{0,1}" + \
              r"(?P<value>[\w\.\-\_/\$\{\}\:,\(\)\#\* ]*)[\"\']{0,1}"

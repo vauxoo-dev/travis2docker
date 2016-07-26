@@ -14,13 +14,17 @@ Why does this file exist, and why not put this in __main__?
 
 """
 import argparse
-from os.path import expanduser, join, expandvars, isfile, isdir
 from os import mkdir
+from os.path import expanduser
+from os.path import expandvars
+from os.path import isdir
+from os.path import isfile
+from os.path import join
 from tempfile import gettempdir
 
-from . travis2docker import Travis2Docker
-from . git_run import GitRun
-from . exceptions import InvalidRepoBranchError
+from .exceptions import InvalidRepoBranchError
+from .git_run import GitRun
+from .travis2docker import Travis2Docker
 
 
 def get_git_data(project, path, revision):
