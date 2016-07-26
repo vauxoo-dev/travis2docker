@@ -104,7 +104,7 @@ SSH key without password
 
 Dockerfile don't support a prompt to entry your password, then you need remove it from your ssh keys.
 
-.. code-block::
+::
 
   export fname=~/.ssh/id_rsa
   cp ${fname} ${fname}_with_pwd
