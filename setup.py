@@ -64,9 +64,7 @@ setup(
     keywords=[
         # eg: 'keyword1', 'keyword2', 'keyword3',
     ],
-    install_requires=[
-        'click',
-    ],
+    install_requires=read('requirements.txt').split('\n'),
     extras_require={
         # eg:
         #   'rst': ['docutils>=0.11'],

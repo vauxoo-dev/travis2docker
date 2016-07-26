@@ -12,6 +12,7 @@ include .isort.cfg
 
 include AUTHORS.rst
 include CHANGELOG.rst
+include requirements.txt
 include CONTRIBUTING.rst
 include LICENSE
 include README.rst
