@@ -14,8 +14,38 @@ Why does this file exist, and why not put this in __main__?
 
 """
 import argparse
+from os.path import expanduser, join, expandvars, isfile, isdir
+from os import mkdir
+from tempfile import gettempdir
 
 from . travis2docker import Travis2Docker
+from . git_run import GitRun
+from . exceptions import InvalidRepoBranchError
+
+
+def get_git_data(project, path, revision):
+    git_obj = GitRun(project, path, path_prefix_repo=True)
+    git_obj.update()
+    data = {
+        'sha': git_obj.get_sha(revision),
+        'content': git_obj.show_file('.travis.yml', revision),
+        'repo_owner': git_obj.owner,
+        'repo_project': git_obj.repo,
+        'git_email': git_obj.get_config_data("user.email"),
+        'git_user': git_obj.get_config_data("user.name"),
+        'revision': revision,
+    }
+    return data
+
+
+def yml_read(yml_path):
+    yml_path_expanded = expandvars(expanduser(yml_path))
+    if isdir(yml_path_expanded):
+        yml_path_expanded = join(yml_path_expanded, '.travis.yml')
+    if not isfile(yml_path_expanded):
+        return
+    with open(yml_path_expanded, "r") as f_yml:
+        return f_yml.read()
 
 
 def main():
@@ -57,7 +87,7 @@ def main():
         '--root-path', dest='root_path',
         help="Root path to save scripts generated."
              "\nDefault: 'tmp' dir of your O.S.",
-        default=None,
+        default=join(gettempdir(), 'travis2docker'),
     )
     parser.add_argument(
         '--add-remote', dest='remotes',
@@ -75,9 +105,10 @@ def main():
         default='-itP -e LANG=C.UTF-8',
     )
     parser.add_argument(
-        '--include-cleanup', dest='include_cleanup',
-        action='store_true', default=False,
-        help='Remove the docker container/image when done testing',
+        '--run-extra-cmds', dest='run_extra_cmds', nargs='*', default="",
+        help='Extra commands to run after "run" script. '
+        'Note: You can use \\$IMAGE escaped environment variable.'
+        'E.g. "docker rmi -f \\$IMAGE"',
     )
     parser.add_argument(
         '--build-extra-args', dest='build_extra_args',
@@ -85,13 +116,19 @@ def main():
         default='--rm',
     )
     parser.add_argument(
+        '--build-extra-cmds', dest='build_extra_cmds', nargs='*', default="",
+        help='Extra commands to run after "build" script. '
+        'Note: You can use \\$IMAGE escaped environment variable.',
+    )
+    parser.add_argument(
         '--travis-yml-path', dest='travis_yml_path',
-        help="Path of file .travis.yml to use.",
+        help="Optional path of file .travis.yml to use.\n"
+        "Default: Extracted from git repo and git revision.",
         default=None,
     )
 
     args = parser.parse_args()
-    sha = args.git_revision
+    revision = args.git_revision
     git_repo = args.git_repo_url
     docker_user = args.docker_user
     root_path = args.root_path
@@ -100,24 +137,44 @@ def main():
     exclude_after_success = args.exclude_after_success
     run_extra_args = args.run_extra_args
     build_extra_args = args.build_extra_args
-    include_cleanup = args.include_cleanup
     travis_yml_path = args.travis_yml_path
+    build_extra_cmds = '\n'.join(args.build_extra_cmds)
+    run_extra_cmds = '\n'.join(args.run_extra_cmds)
+    os_kwargs = get_git_data(git_repo, join(root_path, 'repo'), revision)
+    if travis_yml_path:
+        yml_content = yml_read(travis_yml_path)
+    else:
+        yml_content = os_kwargs['content']
+    if not yml_content:
+        msg = "The file %s is empty." % (travis_yml_path) if travis_yml_path \
+            else "The repo or the branch is incorrect value, because " + \
+                 "It can not got the .travis.yml content from %s %s. " % (
+                    git_repo, revision) + \
+                 "\nPlease, verify access repository," + \
+                 "\nverify exists url and revision, " + \
+                 "\nverify exists .travis.yml"
+        raise InvalidRepoBranchError(msg)
+    os_kwargs.update({
+        'user': docker_user,
+        'add_self_rsa_pub': True,
+        'remotes': remotes,
+    })
+    script_path = join(root_path, 'script')
+    if not isdir(script_path):
+        mkdir(script_path)
     t2d = Travis2Docker(
-        yml_path=travis_yml_path,
-        work_path=root_path,
+        yml_buffer=yml_content,
+        work_path=script_path,
         image=default_docker_image,
-        os_kwargs={
-            'user': docker_user,
-            'repo_owner': 'Vauxoo',
-            'repo_project': 'yoytec',
-            'add_self_rsa_pub': True,
-            'remotes': remotes,
-            'revision': 'pull/2',
-            'git_email': 'moylop@vx.com',
-            'git_user': 'moy6',
-        },
-        copy_paths=[("$HOME/.ssh", "$HOME/.ssh")]
+        os_kwargs=os_kwargs,
+        copy_paths=[(expanduser("~/.ssh"), "$HOME/.ssh")],
     )
-    t2d.run_extra_params = run_extra_args
-    t2d.build_extra_params = build_extra_args
+    t2d.build_extra_params = {
+        'extra_params': build_extra_args,
+        'extra_cmds': build_extra_cmds,
+    }
+    t2d.run_extra_params = {
+        'extra_params': run_extra_args,
+        'extra_cmds': run_extra_cmds,
+    }
     return t2d.compute_dockerfile(skip_after_success=exclude_after_success)

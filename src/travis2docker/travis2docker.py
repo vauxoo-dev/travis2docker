@@ -18,18 +18,8 @@ class Travis2Docker(object):
     re_export = re.compile(RE_EXPORT_STR, re.M)
     curr_work_path = None
     curr_exports = []
-    build_extra_params = None
-    run_extra_params = None
-
-    @staticmethod
-    def load_yml(yml_path):
-        yml_path_expanded = os.path.expandvars(os.path.expanduser(yml_path))
-        if os.path.isdir(yml_path_expanded):
-            yml_path_expanded = os.path.join(yml_path_expanded, '.travis.yml')
-        if not os.path.isfile(yml_path_expanded):
-            return
-        with open(yml_path_expanded, "r") as f_yml:
-            return yaml.load(f_yml)
+    build_extra_params = {}
+    run_extra_params = {}
 
     @property
     def dockerfile_template(self):
@@ -58,7 +48,7 @@ class Travis2Docker(object):
     def chmod_execution(file_path):
         os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IEXEC)
 
-    def __init__(self, yml_path, image, work_path=None, dockerfile=None,
+    def __init__(self, yml_buffer, image, work_path=None, dockerfile=None,
                  templates_path=None, os_kwargs=None, copy_paths=None,
                  ):
         if os_kwargs is None:
@@ -78,7 +68,7 @@ class Travis2Docker(object):
         self._sections['install'] = 'run'
         self._sections['script'] = 'entrypoint'
         self._sections['after_success'] = 'entrypoint'
-        self.yml = self.load_yml(yml_path)
+        self.yml = yaml.load(yml_buffer)
         if work_path is None:
             base_name = os.path.splitext(os.path.basename(__file__))[0]
             self.work_path = os.path.join(gettempdir(), base_name)
@@ -158,14 +148,14 @@ class Travis2Docker(object):
             build_content = self.build_template.render(
                 image=new_image,
                 dirname_dockerfile=self.curr_work_path,
-                extra_params=self.build_extra_params or "",
+                **self.build_extra_params
             ).strip('\n ')
-            f_build.write(build_content)
+            f_build.write(build_content.encode('utf-8'))
             run_content = self.run_template.render(
                 image=new_image,
-                extra_params=self.run_extra_params or "",
+                **self.run_extra_params
             ).strip('\n ')
-            f_run.write(run_content)
+            f_run.write(run_content.encode('utf-8'))
         self.chmod_execution(build_path)
         self.chmod_execution(run_path)
 
@@ -206,10 +196,10 @@ class Travis2Docker(object):
                 kwargs.update(self.os_kwargs)
                 dockerfile_content = \
                     self.dockerfile_template.render(kwargs).strip('\n ')
-                f_dockerfile.write(dockerfile_content)
+                f_dockerfile.write(dockerfile_content.encode('utf-8'))
                 entrypoint_content = \
                     self.entrypoint_template.render(kwargs).strip('\n ')
-                f_entrypoint.write(entrypoint_content)
+                f_entrypoint.write(entrypoint_content.encode('utf-8'))
             self.compute_build_scripts(count)
             self.chmod_execution(entryp_path)
             work_paths.append(self.curr_work_path)
@@ -230,26 +220,26 @@ class Travis2Docker(object):
         return os.path.relpath(dest_path, self.curr_work_path)
 
 
-# pylint: disable=invalid-name
-if __name__ == '__main__':
-    yml_path_wrk = "/Users/moylop260/odoo/yoytec/.travis.yml"
-    yml_path_wrk = "~/odoo/l10n-argentina"
-    yml_path_wrk = "~/odoo/yoytec"
-    image_wrk = 'vauxoo/odoo-80-image-shippable-auto'
-    t2d = Travis2Docker(
-        yml_path_wrk, image_wrk, os_kwargs={
-            'user': 'shippable',
-            'repo_owner': 'Vauxoo',
-            'repo_project': 'yoytec',
-            'add_self_rsa_pub': True,
-            'remotes': ['Vauxoo', 'Vauxoo-dev'],
-            'revision': 'pull/2',
-            'git_email': 'moylop@vx.com',
-            'git_user': 'moy6',
-        },
-        copy_paths=[("$HOME/.ssh", "$HOME/.ssh")]
-    )
-    t2d.run_extra_params = "-itd --entrypoint=bash -e TRAVIS_PULL_REQUEST=1"
-    t2d.build_extra_params = "--rm"
-    t2d.compute_dockerfile(skip_after_success=True)
-    print t2d.work_path
+# TODO: Migrate this code to tests
+# if __name__ == '__main__':
+#     yml_path_wrk = "/Users/moylop260/odoo/yoytec/.travis.yml"
+#     yml_path_wrk = "~/odoo/l10n-argentina"
+#     yml_path_wrk = "~/odoo/yoytec"
+#     image_wrk = 'vauxoo/odoo-80-image-shippable-auto'
+#     t2d = Travis2Docker(
+#         yml_path_wrk, image_wrk, os_kwargs={
+#             'user': 'shippable',
+#             'repo_owner': 'Vauxoo',
+#             'repo_project': 'yoytec',
+#             'add_self_rsa_pub': True,
+#             'remotes': ['Vauxoo', 'Vauxoo-dev'],
+#             'revision': 'pull/2',
+#             'git_email': 'moylop@vx.com',
+#             'git_user': 'moy6',
+#         },
+#         copy_paths=[("$HOME/.ssh", "$HOME/.ssh")]
+#     )
+#     t2d.run_extra_params = "-itd --entrypoint=bash -e TRAVIS_PULL_REQUEST=1"
+#     t2d.build_extra_params = "--rm"
+#     t2d.compute_dockerfile(skip_after_success=True)
+#     print t2d.work_path
