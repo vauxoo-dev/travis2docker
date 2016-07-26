@@ -29,7 +29,7 @@ default_context:
     distribution_name:         'travis2docker'
     email:                     'info@vauxoo.com'
     full_name:                 'Vauxoo'
-    github_username:           'moylop260'
+    github_username:           'vauxoo'
     landscape:                 'no'
     package_name:              'travis2docker'
     project_name:              'travis2docker'

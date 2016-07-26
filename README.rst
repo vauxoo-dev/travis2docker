@@ -19,17 +19,17 @@ Overview
     :target: https://readthedocs.org/projects/travis2docker
     :alt: Documentation Status
 
-.. |travis| image:: https://travis-ci.org/moylop260/travis2docker.svg?branch=master
+.. |travis| image:: https://travis-ci.org/vauxoo/travis2docker.svg?branch=master
     :alt: Travis-CI Build Status
-    :target: https://travis-ci.org/moylop260/travis2docker
+    :target: https://travis-ci.org/vauxoo/travis2docker
 
-.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/moylop260/travis2docker?branch=master&svg=true
+.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/vauxoo/travis2docker?branch=master&svg=true
     :alt: AppVeyor Build Status
-    :target: https://ci.appveyor.com/project/moylop260/travis2docker
+    :target: https://ci.appveyor.com/project/vauxoo/travis2docker
 
-.. |codecov| image:: https://codecov.io/github/moylop260/travis2docker/coverage.svg?branch=master
+.. |codecov| image:: https://codecov.io/github/vauxoo/travis2docker/coverage.svg?branch=master
     :alt: Coverage Status
-    :target: https://codecov.io/github/moylop260/travis2docker
+    :target: https://codecov.io/github/vauxoo/travis2docker
 
 .. |version| image:: https://img.shields.io/pypi/v/travis2docker.svg?style=flat
     :alt: PyPI Package latest release

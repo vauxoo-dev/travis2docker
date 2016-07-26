@@ -33,7 +33,7 @@ setup(
     ),
     author='Vauxoo',
     author_email='info@vauxoo.com',
-    url='https://github.com/moylop260/travis2docker',
+    url='https://github.com/vauxoo/travis2docker',
     packages=find_packages('src'),
     package_dir={'': 'src'},
     py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],

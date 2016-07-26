@@ -31,8 +31,8 @@ version = release = u'3.0.0'
 pygments_style = 'trac'
 templates_path = ['.']
 extlinks = {
-    'issue': ('https://github.com/moylop260/travis2docker/issues/%s', '#'),
-    'pr': ('https://github.com/moylop260/travis2docker/pull/%s', 'PR #'),
+    'issue': ('https://github.com/vauxoo/travis2docker/issues/%s', '#'),
+    'pr': ('https://github.com/vauxoo/travis2docker/pull/%s', 'PR #'),
 }
 # on_rtd is whether we are on readthedocs.org
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'

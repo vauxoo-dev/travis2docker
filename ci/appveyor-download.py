@@ -93,7 +93,7 @@ def unpack_zipfile(filename):
 parser = argparse.ArgumentParser(description='Download artifacts from AppVeyor.')
 parser.add_argument('--id',
                     metavar='PROJECT_ID',
-                    default='moylop260/travis2docker',
+                    default='vauxoo/travis2docker',
                     help='Project ID in AppVeyor.')
 parser.add_argument('build',
                     nargs='?',
