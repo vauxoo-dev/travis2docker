@@ -83,7 +83,7 @@ class Travis2Docker(object):
         if not section_type:
             return None
         section_data = self.yml.get(section, "")
-        if isinstance(section_data, basestring):
+        if not isinstance(section_data, (list, dict, tuple)):
             section_data = [section_data]
         job_method = getattr(self, '_compute_' + section_type)
         return job_method(section_data, section)
@@ -150,12 +150,19 @@ class Travis2Docker(object):
                 dirname_dockerfile=self.curr_work_path,
                 **self.build_extra_params
             ).strip('\n ')
-            f_build.write(build_content.encode('utf-8'))
+            try:
+                f_build.write(build_content.encode('utf-8'))
+            except TypeError:
+                f_build.write(build_content)
+
             run_content = self.run_template.render(
                 image=new_image,
                 **self.run_extra_params
             ).strip('\n ')
-            f_run.write(run_content.encode('utf-8'))
+            try:
+                f_run.write(run_content.encode('utf-8'))
+            except TypeError:
+                f_run.write(run_content)
         self.chmod_execution(build_path)
         self.chmod_execution(run_path)
 
@@ -196,10 +203,16 @@ class Travis2Docker(object):
                 kwargs.update(self.os_kwargs)
                 dockerfile_content = \
                     self.dockerfile_template.render(kwargs).strip('\n ')
-                f_dockerfile.write(dockerfile_content.encode('utf-8'))
+                try:
+                    f_dockerfile.write(dockerfile_content.encode('utf-8'))
+                except TypeError:
+                    f_dockerfile.write(dockerfile_content)
                 entrypoint_content = \
                     self.entrypoint_template.render(kwargs).strip('\n ')
-                f_entrypoint.write(entrypoint_content.encode('utf-8'))
+                try:
+                    f_entrypoint.write(entrypoint_content.encode('utf-8'))
+                except TypeError:
+                    f_entrypoint.write(entrypoint_content)
             self.compute_build_scripts(count)
             self.chmod_execution(entryp_path)
             work_paths.append(self.curr_work_path)

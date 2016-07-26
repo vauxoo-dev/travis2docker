@@ -126,6 +126,11 @@ def main():
         "Default: Extracted from git repo and git revision.",
         default=None,
     )
+    parser.add_argument(
+        '--no-clone', dest='no_clone', action='store_true',
+        help="Avoid clone the repository. It will require travis-yml-path",
+        default=False,
+    )
 
     args = parser.parse_args()
     revision = args.git_revision
@@ -140,7 +145,15 @@ def main():
     travis_yml_path = args.travis_yml_path
     build_extra_cmds = '\n'.join(args.build_extra_cmds)
     run_extra_cmds = '\n'.join(args.run_extra_cmds)
-    os_kwargs = get_git_data(git_repo, join(root_path, 'repo'), revision)
+    no_clone = args.no_clone
+    if no_clone:
+        os_kwargs = {
+            'repo_owner': 'local_file',
+            'repo_project': 'local_file',
+            'revision': 'local_file',
+        }
+    else:
+        os_kwargs = get_git_data(git_repo, join(root_path, 'repo'), revision)
     if travis_yml_path:
         yml_content = yml_read(travis_yml_path)
     else:
