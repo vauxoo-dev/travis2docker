@@ -65,6 +65,66 @@ Installation
 
     pip install travis2docker
 
+Usage
+=====
+
+`travisfile2dockerfile REPO_URL BRANCH`
+ 
+Or with pull request
+ `travisfile2dockerfile REPO_URL pull/##`
+ 
+In REPO_URL use the ssh url of github.
+
+For more information execute:
+ `travisfile2dockerfile --help`
+ 
+Example:
+ `travisfile2dockerfile --root-path=$HOME/t2d git@github.com:Vauxoo/forecast.git 8.0`
+
+The output is:
+ `${HOME}/t2d/script/git_github.com_Vauxoo_forecast.git/8.0/1`
+ `${HOME}/t2d/script/git_github.com_Vauxoo_forecast.git/8.0/2`
+
+The first one is the build for env `TESTS=1`, the second one is for env with `LINT_CHECK=1`
+
+To build image:
+ `${HOME}/t2d/script/git_github.com_Vauxoo_forecast.git/8.0/1/10-build.sh`
+
+To create container:
+ `${HOME}/t2d/script/git_github.com_Vauxoo_forecast.git/8.0/1/20-run.sh --entrypoint=bash`
+
+To run the test (into of container):
+ `/entrypoint.sh`
+
+Depends
+=======
+
+SSH key without password
+************************
+
+Dockerfile don't support a prompt to entry your password, then you need remove it from your ssh keys.
+
+.. code-block::
+
+  export fname=~/.ssh/id_rsa
+  cp ${fname} ${fname}_with_pwd
+  openssl rsa -in ${fname} -out ${fname}_without_pwd
+  cp ${fname}_without_pwd ${fname}
+
+Download the big image
+**********************
+
+Travis2docker use a default image with many packages pre-installed.
+
+`docker pull vauxoo/odoo-80-image-shippable-auto`
+
+Note: You can define a custom image to use with `--docker-image` parameter.
+
+Install docker
+**************
+
+https://docs.docker.com/installation/ubuntulinux/
+
 Documentation
 =============
 
