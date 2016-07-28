@@ -12,6 +12,8 @@ ADD {{ src }} {{ dest }}
 RUN chown -R {{ user }}:{{ user }} {{dest}}
 {% endfor -%}
 
+{{ root_image_commands  }}
+
 USER {{ user }}
 ENV TRAVIS_REPO_SLUG={{ repo_owner }}/{{ repo_project }}
 ENV TRAVIS_BUILD_DIR=${HOME}/${TRAVIS_REPO_SLUG}
@@ -48,3 +50,5 @@ WORKDIR ${TRAVIS_BUILD_DIR}
 RUN {{ run }}
 {%- endfor %}
 ENTRYPOINT /entrypoint.sh
+
+{{ user_image_commands  }}

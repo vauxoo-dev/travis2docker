@@ -125,9 +125,25 @@ def main():
         default='--rm',
     )
     parser.add_argument(
-        '--build-extra-cmds', dest='build_extra_cmds', nargs='*', default="",
+        '--build-extra-cmds', dest='build_extra_cmds', nargs='*',
         help='Extra commands to run after "build" script. '
         'Note: You can use \\$IMAGE escaped environment variable.',
+    )
+    parser.add_argument(
+        '--root-image-cmds', dest='root_image_cmds', nargs='*',
+        help='Dockerfile entries to add executed from root user',
+    )
+    parser.add_argument(
+        '--user-image-cmds', dest='user_image_cmds', nargs='*',
+        help='Dockerfile entries to add executed from custom user.',
+    )
+    parser.add_argument(
+        '--entrypoint-before-cmds', dest='entp_bef_cmds', nargs='*',
+        help='Commands line to execute before to run normal entrypoint',
+    )
+    parser.add_argument(
+        '--entrypoint-after-cmds', dest='entp_aft_cmds', nargs='*',
+        help='Commands line to execute after to run normal entrypoint',
     )
     parser.add_argument(
         '--travis-yml-path', dest='travis_yml_path',
@@ -184,6 +200,10 @@ def main():
         'user': docker_user,
         'add_self_rsa_pub': True,
         'remotes': remotes,
+        'root_image_commands': '\n'.join(args.root_image_cmds),
+        'user_image_commands': '\n'.join(user_image_cmds),
+        'entrypoint_commands_before': '\n'.join(entp_bef_cmds),
+        'entrypoint_commands_after': '\n'.join(entp_aft_cmds),
     })
     t2d = Travis2Docker(
         yml_buffer=yml_content,
