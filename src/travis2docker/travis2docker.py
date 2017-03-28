@@ -246,6 +246,9 @@ class Travis2Docker(object):
             copies = []
             for copy_path, dest in self.copy_paths:
                 copies.append((self.copy_path(copy_path), dest))
+            if 'pull/' in self.os_kwargs['revision']:
+                env = (env + ' TRAVIS_PULL_REQUEST=%s' %
+                       self.os_kwargs['revision'].replace('pull/', ''))
             kwargs = {'runs': [], 'copies': copies, 'entrypoints': [],
                       'entrypoint_path': entryp_relpath, 'image': self.image,
                       'env': env, 'packages': [], 'sources': [],
