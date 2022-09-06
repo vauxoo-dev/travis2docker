@@ -137,7 +137,8 @@ jobs:
     - name: test
       env:
         TOXPYTHON: '${{ matrix.toxpython }}'
-      run: >
+      run: >-
+        mkdir -p ~/.ssh &&
         tox -e ${{ matrix.tox_env }} -v
     - name: Build a binary wheel and a source tarball
       if: runner.os == 'Linux' && startsWith(matrix.tox_env, 'py39')
