@@ -1,5 +1,5 @@
 # No logger planned to use here
-# pylint: disable=print-used
+# pylint: disable=print-used,consider-using-with
 from __future__ import print_function
 
 import os
@@ -45,7 +45,7 @@ def test_main():
     # TODO: fix duplicated code
     dirname_example = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'examples')
     argv = ['travis2docker', 'foo', 'bar', '--no-clone']
-    sources_py = "source ${REPO_REQUIREMENTS}/virtualenv/" "python2.7/bin/activate"
+    sources_py = "source ${REPO_REQUIREMENTS}/virtualenv/" + "python2.7/bin/activate"
     sources_js = "source ${REPO_REQUIREMENTS}/virtualenv/nodejs/bin/activate"
     lines_required = [
         'RUN /bin/bash -c "{source_py} && {source_js} '
@@ -117,7 +117,7 @@ def test_main():
     url = 'https://github.com/Vauxoo/travis2docker.git'
     sys.argv = ['travis2docker', url, 'master']
     scripts = main()
-    sources_py = "source ${REPO_REQUIREMENTS}/virtualenv/" "python3.5/bin/activate"
+    sources_py = "source ${REPO_REQUIREMENTS}/virtualenv/" + "python3.5/bin/activate"
     lines_required.pop(0)
     lines_required.append(
         'RUN /bin/bash -c "{source_py} && {source_js} && '

@@ -1,3 +1,4 @@
+# pylint: disable=useless-object-inheritance,consider-using-with,too-complex
 import collections
 import errno
 import json
@@ -282,7 +283,7 @@ class Travis2Docker(object):
                     version = global_version
                     try:
                         version = job_stage['python']
-                    except KeyError:  # pylint: disble=except-pass
+                    except KeyError:  # pylint: disable=except-pass
                         pass
                     version = "%s" % version
 
@@ -357,9 +358,7 @@ class Travis2Docker(object):
         return work_paths
 
     def copy_path(self, path):
-        """
-        :param paths list: List of paths to copy
-        """
+        """:param paths list: List of paths to copy"""
         src = os.path.expandvars(os.path.expanduser(path))
         basename = os.path.basename(src)
         dest_path = os.path.expandvars(os.path.expanduser(os.path.join(self.curr_work_path, basename)))
