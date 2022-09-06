@@ -1,3 +1,4 @@
+# pylint: disable=useless-object-inheritance,
 from __future__ import print_function
 
 import os

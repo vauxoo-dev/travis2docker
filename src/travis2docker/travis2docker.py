@@ -138,7 +138,9 @@ class Travis2Docker(object):
         self.dockerfile = dockerfile
 
         travis_ci_apt_src = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'travis-ci-apt-source-whitelist')
-        self.ubuntu_json = json.load(open(os.path.join(travis_ci_apt_src, "ubuntu.json")))
+        self.ubuntu_json = json.load(
+            open(os.path.join(travis_ci_apt_src, "ubuntu.json"))
+        )  # pylint: disable=consider-using-with
 
     def _compute(self, section, yml=None):
         if yml is None:
@@ -280,7 +282,7 @@ class Travis2Docker(object):
                     version = global_version
                     try:
                         version = job_stage['python']
-                    except KeyError:
+                    except KeyError:  # pylint: disble=except-pass
                         pass
                     version = "%s" % version
 
@@ -366,7 +368,7 @@ class Travis2Docker(object):
         if os.path.isdir(src):
             try:
                 shutil.copytree(src, dest_path)
-            except shutil.Error:
+            except shutil.Error:  # pylint: disable=except-pass
                 pass  # There are permissions errors to copy
         elif os.path.isfile(src):
             shutil.copy(src, dest_path)

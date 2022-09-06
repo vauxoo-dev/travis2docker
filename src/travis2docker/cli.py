@@ -1,5 +1,4 @@
-"""
-Module that contains the command line app.
+"""Module that contains the command line app.
 
 Why does this file exist, and why not put this in __main__?
 
@@ -267,10 +266,12 @@ def main(return_result=False):
             stdout.write('\ndocker exec -it --user=root CONTAINER chown -R odoo:odoo /home/odoo/.ssh\n')
             if not default_docker_image:
                 stdout.write(
-                    '\nUsing --deployv option will build only stable branch (no dev custom branch or pull request compatible yet)\n'
+                    '\nUsing --deployv option will build only stable branch '
+                    '(no dev custom branch or pull request compatible yet)\n'
                     'But you can use the parameter "--docker-image=quay.io/vauxoo/PROJECT:TAG" '
                     'get the PROJECT:TAG info in your "build_docker" pipeline similar to '
-                    '\n"... INFO  - deployv.deployv_addon_gitlab_tools.common.common.push_image - Pushing image ... to quay.io/vauxoo/PROJECT:TAG"\n'
+                    '\n"... INFO  - deployv.deployv_addon_gitlab_tools.common.common.push_image - '
+                    'Pushing image ... to quay.io/vauxoo/PROJECT:TAG"\n'
                 )
     else:
         stdout.write('\nNo scripts were generated.')

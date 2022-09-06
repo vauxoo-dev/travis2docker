@@ -1,3 +1,5 @@
+# No logger planned to use here
+# pylint: disable=print-used
 from __future__ import print_function
 
 import os
