@@ -126,6 +126,18 @@ jobs:
         python-version: ${{ matrix.python }}
         architecture: ${{ matrix.python_arch }}
         cache: 'pip'
+    - name: install dependencies
+      run: |
+        python -mpip install --progress-bar=off -r ci/requirements.txt
+        virtualenv --version
+        pip --version
+        tox --version
+        pip list --format=freeze
+    - name: test
+      env:
+        TOXPYTHON: '${{ matrix.toxpython }}'
+      run: >
+        tox -e ${{ matrix.tox_env }} -v
     - name: Build a binary wheel and a source tarball
       if: runner.os == 'Linux' && startsWith(matrix.tox_env, 'py39')
       run: >-
