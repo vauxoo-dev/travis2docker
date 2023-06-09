@@ -5,6 +5,7 @@ from __future__ import print_function
 import os
 import subprocess
 import time
+import pwd
 
 
 def start_psql():
@@ -61,7 +62,7 @@ def list_modules(modules_path):
     excluded_modules = set([module.strip() for module in os.environ.get("EXCLUDE", "").split(",") if module.strip()])
     for i in os.listdir(main_repo_path):
         if i in excluded_modules:
-          continue
+            continue
         manifest = os.path.join(main_repo_path, i, "__manifest__.py")
         if os.path.isfile(manifest):
             manifest_data = eval(open(manifest).read())
@@ -69,6 +70,10 @@ def list_modules(modules_path):
                 continue
             list_modules.append(i)
     return list_modules
+
+
+def is_root():
+    return pwd.getpwuid(os.getuid())[0] == "root"
 
 
 def str2bool(string):
@@ -85,6 +90,10 @@ def start_odoo():
         "-XtAc",
         "SELECT 1 FROM res_users LIMIT 1;",
     ]
+    if is_root():
+      cmd = ["sudo", "-u", "odoo"] + cmd
+      psql_cmd = ["sudo", "-u", "postgres"] + psql_cmd
+
     try:
         subprocess.check_output(psql_cmd)
         database_created = True
@@ -101,6 +110,12 @@ def start_odoo():
     subprocess.call(cmd)
 
 
+def start_ssh():
+    if os.environ.get("START_SSH", False) and is_root():
+        subprocess.call("/etc/init.d/ssh start", shell=True)
+
+
 if __name__ == "__main__":
+    start_ssh()
     start_psql()
     start_odoo()
